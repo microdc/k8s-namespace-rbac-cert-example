@@ -25,13 +25,7 @@ kind: CertificateSigningRequest
 metadata:
   name: ${USER}.${NAMESPACE}
 spec:
-  groups:
-  - system:authenticated
   request: $(cat ${CSR} | base64 | tr -d '\n')
-  usages:
-  - digital signature
-  - key encipherment
-  - server auth
 EOF
 
 kubectl certificate approve "${USER}.${NAMESPACE}"
