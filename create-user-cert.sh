@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -eo pipefail
+#set -eo pipefail
+#set -vx
 
 : "${K8S_USER:?must be set}"
 : "${K8S_GROUPS:?must be set}"
@@ -18,7 +19,7 @@ if [[ -z ${USER_CSR} ]] ; then
 	echo "Generating the user cert. Consider the user supplying a CSR to the USER_CSR env rather as this is like generating a users password :(" >&2
 	echo '   They can generate one by running `openssl genrsa -out "${USER}.key" 4098` followed by `openssl req -new -key "${USER}.key" -out "${USER}.csr" -subj "/CN=${USER}/O=developer"`'
 	sleep 5
-	openssl genrsa -out "${K8S_USER}.key" 4098
+	openssl genrsa -out "${K8S_USER}.key" 2048
 	O='O='$(echo "${K8S_GROUPS}" | sed 's/,/\/O=/g')
 	openssl req -new -key "${K8S_USER}.key" -out "${USER_CSR}" -subj "/CN=${K8S_USER}/${O}"
 fi
@@ -47,7 +48,7 @@ CLUSTER_CERT="${K8S_CLUSTER}.crt"
 
 kubectl --server "https://api.${K8S_CLUSTER}" get csr "${K8S_USER}" -o jsonpath='{.status.certificate}' |  base64 --decode > "${USER_CERT}"
 
-openssl s_client -showcerts -connect api.dev.k8s.moneynp.xinja.com.au:443 </dev/null 2>/dev/null | openssl x509 > "${CLUSTER_CERT}"
+openssl s_client -showcerts -connect api.${K8S_CLUSTER}:443 </dev/null 2>/dev/null | openssl x509 > "${CLUSTER_CERT}"
 
 zip ${current_dir}/${K8S_USER}.${K8S_CLUSTER}.zip *
 
