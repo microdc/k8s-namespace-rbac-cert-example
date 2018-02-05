@@ -3,6 +3,20 @@
 #set -eo pipefail
 #set -vx
 
+k8s_config_context=$(kubectl config current-context)
+
+echo "================================================="
+echo "running against ${k8s_config_context}"
+echo "================================================="
+
+k8s_config_cluster=$(kubectl config view -o jsonpath='{.contexts[?(@.name=="'${k8s_config_context}'")].context.cluster}')
+
+k8s_cluster_endpoint=$(kubectl config view -o jsonpath='{.clusters[?(@.name=="'${k8s_config_cluster}'")].cluster.server}')
+
+k8s_cluster_domain=${k8s_cluster_endpoint#*:\/\/api.}
+k8s_cluster_domain=${k8s_cluster_domain#*:\/\/}
+
+
 : "${K8S_USER:?must be set}"
 : "${K8S_GROUPS:?must be set}"
 : "${K8S_CLUSTER:?must be set}"
@@ -32,7 +46,7 @@ for group in ${K8S_GROUPS//,/ } ; do
 done
 echo "${REQ_SUBJECT}" | grep "^subject=\/CN=${K8S_USER}$" || { echo "Subject doesn't match expected subject"; exit 1 ; }
 
-cat <<EOF | kubectl --server "https://api.${K8S_CLUSTER}" create -f -
+cat <<EOF | kubectl create -f -
 apiVersion: certificates.k8s.io/v1beta1
 kind: CertificateSigningRequest
 metadata:
@@ -41,25 +55,26 @@ spec:
   request: $(cat ${USER_CSR} | base64 | tr -d '\n')
 EOF
 
-kubectl --server "https://api.${K8S_CLUSTER}" certificate approve "${K8S_USER}"
+kubectl certificate approve "${K8S_USER}"
 
-USER_CERT="${K8S_USER}.${K8S_CLUSTER}.crt"
-CLUSTER_CERT="${K8S_CLUSTER}.crt"
+USER_CERT="${K8S_USER}.${k8s_cluster_domain}.crt"
+CLUSTER_CERT="${k8s_cluster_domain}.crt"
 
-kubectl --server "https://api.${K8S_CLUSTER}" get csr "${K8S_USER}" -o jsonpath='{.status.certificate}' |  base64 --decode > "${USER_CERT}"
+kubectl get csr "${K8S_USER}" -o jsonpath='{.status.certificate}' |  base64 --decode > "${USER_CERT}"
 
-openssl s_client -showcerts -connect api.${K8S_CLUSTER}:443 </dev/null 2>/dev/null | openssl x509 > "${CLUSTER_CERT}"
+openssl s_client -showcerts -connect "api.${k8s_cluster_domain}:443" </dev/null 2>/dev/null | openssl x509 > "${CLUSTER_CERT}"
 
-zip ${current_dir}/${K8S_USER}.${K8S_CLUSTER}.zip *
+zip ${current_dir}/${K8S_USER}.${k8s_cluster_domain}.zip *
 
 echo
 echo "========================================================="
 cat <<EOF | cat -
-Send ${K8S_USER}.${K8S_CLUSTER}.zip to ${K8S_USER}, tell them to unzip it and run the following to set up their kubectl:
+Send ${K8S_USER}.${k8s_cluster_domain}.zip to ${K8S_USER}, tell them to unzip it and run the following to set up their kubectl:
 \`\`\`
-kubectl config set-credentials "${K8S_USER}.${K8S_CLUSTER}" --client-certificate="${USER_CERT}" --client-key="${K8S_USER}.key" --embed-certs=true
-kubectl config set-cluster "${K8S_CLUSTER}" --server=https://api.${K8S_CLUSTER} --certificate-authority="${CLUSTER_CERT}" --embed-certs=true
-kubectl config set-context "${K8S_USER}.${K8S_CLUSTER}" --cluster="${K8S_CLUSTER}" --namespace=apps --user="${K8S_USER}.${K8S_CLUSTER}"
-kubectl --context="${K8S_USER}.${K8S_CLUSTER}" get pods -n apps
+kubectl config set-credentials "${K8S_USER}.${k8s_cluster_domain}" --client-certificate="${USER_CERT}" --client-key="${K8S_USER}.key" --embed-certs=true
+kubectl config set-cluster "${k8s_cluster_domain}" --server=https://api.${k8s_cluster_domain} --certificate-authority="${CLUSTER_CERT}" --embed-certs=true
+kubectl config set-context "${K8S_USER}.${k8s_cluster_domain}" --cluster="${k8s_cluster_domain}" --namespace=apps --user="${K8S_USER}.${k8s_cluster_domain}"
+kubectl config use-context "${K8S_USER}.${k8s_cluster_domain}"
+kubectl get pods -n apps
 \`\`\`
 EOF
