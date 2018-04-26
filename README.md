@@ -12,7 +12,12 @@ script to perform the following:
 
 This can be done by the admin but really users keys should never leave their own environment.
 
-`openssl genrsa -out "${USER}.key" 4098` generates a key
+### Prerequisites
+* openssl (command line util)
+
+Share the following  two commands with the user to have them generate a key.
+
+`openssl genrsa -out "${USER}.key" 4096` generates a key
 
 `openssl req -new -key "${USER}.key" -out "${USER}.csr" -subj "/CN=${USER}/O=developer"` generates a CSR for a user in the `developer` group
 
