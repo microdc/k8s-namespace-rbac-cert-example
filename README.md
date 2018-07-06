@@ -25,8 +25,8 @@ Share the following  two commands with the user to have them generate a key.
 ## Create, sign and zip up user creds
 ```
 $ export K8S_USER=jim
-$ export K8S_GROUPS=developer
-$ export K8S_CLUSTER=dev.k8s.example.com
+$ export K8S_NAMESPACE=apps
+$ export K8S_ADMIN=0  # 0 for no admin rights, 1 for cluster admin
 $ export USER_CSR=/tmp/jim.csr ## This is optional but encouraged, keys will be generated if no CSR is supplied
 $ ./create-user-cert.sh
 ```

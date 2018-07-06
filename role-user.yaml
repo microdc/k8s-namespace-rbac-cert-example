@@ -2,9 +2,9 @@
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  namespace: ${NAMESPACE}
-  name: ${USER}
+  namespace: ${K8S_NAMESPACE}
+  name: ${K8S_USER}
 rules:
 - apiGroups: [""]
-  resources: ["deployments", "replicasets", "pods"]
+  resources: ["deployments", "replicasets", "pods", "pods/attach", "pods/log"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"] # You can also use ["*"]

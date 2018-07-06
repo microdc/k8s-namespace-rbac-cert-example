@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#set -eo pipefail
-#set -vx
+set -eo pipefail
+set -vx
 
 k8s_config_context=$(kubectl config current-context)
 
@@ -56,7 +56,9 @@ CLUSTER_CERT="${k8s_cluster_domain}.crt"
 
 kubectl get csr "${K8S_USER}" -o jsonpath='{.status.certificate}' |  base64 --decode > "${USER_CERT}"
 
-kubectl create rolebinding "${K8S_USER}-cluster-admin" --clusterrole=cluster-admin "--user=${K8S_USER}" --namespace=apps
+if [[ "$K8S_ADMIN" -eq 1 ]] ; then
+	kubectl create rolebinding "${K8S_USER}-cluster-admin" --clusterrole=cluster-admin "--user=${K8S_USER}" --namespace=${K8S_NAMESPACE}
+fi
 
 openssl s_client -showcerts -connect "api.${k8s_cluster_domain}:443" </dev/null 2>/dev/null | openssl x509 > "${CLUSTER_CERT}"
 
@@ -69,8 +71,8 @@ Send ${K8S_USER}.${k8s_cluster_domain}.zip to ${K8S_USER}, tell them to unzip it
 \`\`\`
 kubectl config set-credentials "${K8S_USER}.${k8s_cluster_domain}" --client-certificate="${USER_CERT}" --client-key="${K8S_USER}.key" --embed-certs=true
 kubectl config set-cluster "${k8s_cluster_domain}" --server=https://api.${k8s_cluster_domain} --certificate-authority="${CLUSTER_CERT}" --embed-certs=true
-kubectl config set-context "${K8S_USER}.${k8s_cluster_domain}" --cluster="${k8s_cluster_domain}" --namespace=apps --user="${K8S_USER}.${k8s_cluster_domain}"
+kubectl config set-context "${K8S_USER}.${k8s_cluster_domain}" --cluster="${k8s_cluster_domain}" --namespace=${K8S_NAMESPACE} --user="${K8S_USER}.${k8s_cluster_domain}"
 kubectl config use-context "${K8S_USER}.${k8s_cluster_domain}"
-kubectl get pods -n apps
+kubectl get pods -n ${K8S_NAMESPACE}
 \`\`\`
 EOF
